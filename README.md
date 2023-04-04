@@ -1,7 +1,5 @@
 # ukb_data_explorations
 
-# createUKBphenome
-
 ## Basic concepts
 1. Summarization of UKB fields
 2. Summarization of available UKB baskets

@@ -14,8 +14,6 @@ suppressPackageStartupMessages({
 n_cores <- ceiling(detectCores() / 4)
 setDTthreads(n_cores)
 
-setwd("/net/junglebook/home/larsf/GitHub/ukb_data_explorations")
-
 # data.table with the fields and their descriptions
 all_tables <- fread("./data/Fields_in_Available_Data.txt", header = TRUE)
 all_basket_fields <- fread("./data/Fields_in_Available_Baskets.txt", sep = "\t")

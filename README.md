@@ -23,12 +23,12 @@ Add the latest file with withdrawn samples 'w#####_########.csv' to './data/' fo
 
 ## Step 2: Collectin information about UKB fields
 ```bash
-Rscripts ./scripts/function.collectFields.r
+Rscript ./scripts/function.collectFields.r
 ```
 
 ## Step 3: Summarize the available data and prepare data across baskets
 ```bash
-Rscripts ./scripts/function.summarizeAvailableData.r
+Rscript ./scripts/function.summarizeAvailableData.r
 ```
 
 ## Step 4: Extract field information and data and recode with instances:

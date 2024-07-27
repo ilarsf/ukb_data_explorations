@@ -1,6 +1,6 @@
 ## UK Biobank Data Extraction and Processing
 
-This repository contains scripts for collecting, summarizing, and extracting medical data fields from the UK Biobank resource.
+This repository contains scripts for collecting, summarizing, and extracting data fields from the UK Biobank resource.
 
 ### Prerequisites
 
@@ -21,7 +21,16 @@ Before running these scripts, ensure you have the following R packages installed
 You can install these packages using the following command in R:
 
 ```R
-install.packages(c("RCurl", "XML", "data.table", "htmltab", "htmltidy", "httr", "intervals", "methods", "optparse", "parallel", "readr", "stringr"))
+required_libraries <- c(
+    "RCurl", "XML", "data.table", "htmltab", "htmltidy", "httr",
+    "intervals", "methods", "optparse", "parallel", "readr", "stringr"
+)
+for (lib in required_libraries) {
+    if (!require(lib, character.only = TRUE)) {
+        install.packages(lib, dependencies = TRUE)
+        library(lib, character.only = TRUE)
+    }
+}
 ```
 
 You will also need access to UK Biobank data files and appropriate permissions to use them.

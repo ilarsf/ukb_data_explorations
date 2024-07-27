@@ -90,16 +90,14 @@ This script loads the necessary function from the `function.summarizeAvailableDa
 
 ### Step 3: Find Relevant Data Fields and Extract Data
 
-The final step focuses on identifying relevant ICD10 and ICD9 fields and extracting the necessary data for analysis. It involves checking for available data, extracting specific codes, harmonizing them, and preparing the final dataset.
+The final step focuses on extracting relevant ICD10 and ICD9 data for analysis. It involves extracting ICD9 and ICD10 codes, harmonizing them, and preparing the final dataset.
 
 #### Detailed Script Actions
 
-1. **Load Field Data**: Load all fields from available data baskets to identify which contain the required ICD10 and ICD9 codes.
-2. **Check and Print Available ICD Data**: Filter out fields that contain ICD10 and ICD9 codes and print them to ensure correctness.
-3. **Extract Data**: Specify fields for ICD10 and ICD9, extract them along with the date of the first diagnosis, and ensure data integrity by matching instances and baskets.
-4. **Harmonize Codes**: Clean and standardize the ICD codes using predefined harmonization functions.
-5. **Merge and Rename Data**: Combine ICD10 and ICD9 data into a single dataset and rename columns for better readability.
-6. **Save Final Data**: Save the harmonized and merged data to a file, ensuring it is ready for further analysis or reporting.
+1. **Extract Data**: Specify fields for ICD10 and ICD9, extract them along with the date of the first diagnosis, and ensure data integrity by matching instances and baskets.
+2. **Harmonize Codes**: Clean and standardize the ICD codes using predefined harmonization functions.
+3. **Merge and Rename Data**: Combine ICD10 and ICD9 data into a single dataset and rename columns for better readability.
+4. **Save Final Data**: Save the harmonized and merged data to a file, ensuring it is ready for further analysis or reporting.
 
 #### Script Explanation
 
@@ -151,20 +149,21 @@ process_icd_data <- function(fields, harmonize_func, lexicon, basket = NULL) {
 }
 
 # Process ICD9 data
+# Here we specify the basket, because only one basket contains both ICD9 fields (code and date) and thus the same instance IDs
 icd9_fields <- c("41271", "41281")
-icd9_data <- process_icd_data(icd9_fields, harmonize_icd9, "ICD9")
+icd9_data <- process_icd_data(icd9_fields, harmonize_icd9, "ICD9", , basket = "ukb12345")
 
 # Process ICD10 data
 # Here we specify the basket, because only one basket contains both ICD10 fields (code and date) and thus the same instance IDs
 icd10_fields <- c("41270", "41280")
 icd10_data <- process_icd_data(icd10_fields, harmonize_icd10, "ICD10", basket = "ukb12345")
 
-# Combine the ICD10 and ICD9 data
+# Combine the ICD9 and ICD10 data
 icd_data <- rbind(
     icd9_data[, .(id, instance, icd_code, icd_code_clean, icd_first_date, lexicon)],
     icd10_data[, .(id, instance, icd_code, icd_code_clean, icd_first_date, lexicon)]
 )
 
 # Optionally, save the combined dataset to a file
-fwrite(icd_data, "./results/ICD_data.tsv", sep = "\t", quote = TRUE, row.names = FALSE, col.names = TRUE)
+fwrite(icd_data, "./results/ICD_data_ukb12345.tsv", sep = "\t", quote = TRUE, row.names = FALSE, col.names = TRUE)
 ```

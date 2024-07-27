@@ -43,8 +43,8 @@ Ensure your data environment is set up correctly before running the scripts:
    - Add these paths to a single text file named `baskets.txt` and save this file in the `./data/` directory.
    - Example format in `baskets.txt`:
      ```
-     /driveA/UKB/ukb23155.tab
-     /driveA/UKB/ukb23156.tab
+     /driveA/UKB/ukb12345.tab
+     /driveA/UKB/ukb23456.tab
      ```
    - Ensure each path is on a new line.
 

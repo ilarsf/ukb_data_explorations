@@ -1,29 +1,87 @@
-# Rscript written by Lars Fritsche to extract / reformat UKB data
+#' Extract and reformat UKB data
+#' 
+#' This script contains functions to extract and reformat UKB data.
+#' 
+#' @import data.table
+#' @import optparse
+#' @import methods
+#' @import intervals
+#' @import httr
+#' @import readr
+#' @import parallel
+#' @import RCurl
+#' @import htmltidy
+#' @import XML
 
-options(stringsAsFactors = FALSE)
+# Load necessary libraries
 suppressPackageStartupMessages({
-    library("data.table")
-    library("optparse")
-    library("methods")
-    library("intervals")
-    library("httr")
-    library("readr")
-    library("parallel")
+    library(data.table)
+    library(optparse)
+    library(methods)
+    library(intervals)
+    library(httr)
+    library(readr)
+    library(parallel)
+    library(RCurl)
+    library(htmltidy)
+    library(XML)
 })
 
+# Set the number of cores for parallel processing
 n_cores <- ceiling(detectCores() / 4)
 setDTthreads(n_cores)
 
-# data.table with the fields and their descriptions
+# Load data tables with field descriptions
 all_tables <- fread("./data/Fields_in_Available_Data.txt", header = TRUE)
 all_basket_fields <- fread("./data/Fields_in_Available_Baskets.txt", sep = "\t")
 
+# List of withdrawn files
 file_withdrawn <- list.files("./data", "w.+.csv", full.name = TRUE)
 
-source("./scripts/function.extractFieldData.r")
+#' Extract field data from UKB
+#'
+#' @param field_id The field ID to extract
+#' @param basket The basket associated with the field
+#' @param file_basket The file containing the basket data
+#' @param subfield_ids The subfield IDs to extract
+#' @param out_file The output file path
+#' @param file_withdrawn The file containing withdrawn IDs
+#' @param overwrite Whether to overwrite existing files
+#' @return None
+extract_field_data <- function(field_id, basket, file_basket, subfield_ids, out_file, file_withdrawn, overwrite = FALSE) {
+    if (!file.exists(dirname(out_file))) dir.create(dirname(out_file), recursive = TRUE)
+    if (file.exists(out_file) && !overwrite) {
+        print("Existing File not overwritten")
+        return()
+    }
+    setDTthreads(12)
 
-library(optparse)
+    wids <- readLines(file_withdrawn)
+    tempdata <- fread(file_basket, select = c("f.eid", strsplit(subfield_ids, ",")[[1]]), na.strings = "")
+    tempdata <- tempdata[apply(tempdata[, -1], 1, function(x) any(!is.na(x) & x != "" & x != "NA")), ]
+    tempdata_long <- melt(tempdata,
+        measure = patterns(paste0("^f.", field_id)),
+        variable.name = "instance",
+        value.name = paste0("f.", field_id)
+    )
+    tempdata_long[, `:=`(instance = gsub(paste0("f.", field_id, "\\."), "", instance))]
+    if (tempdata_long[, is.character(get(paste0("f.", field_id)))]) {
+        tempdata_long <- tempdata_long[get(paste0("f.", field_id)) != "NA", ]
+    } else {
+        tempdata_long <- tempdata_long[!is.na(get(paste0("f.", field_id))), ]
+    }
+    tempdata_long[, (paste0("f.", field_id)) := gsub("\"\"", "", get(paste0("f.", field_id)))]
+    tempdata_long <- tempdata_long[order(f.eid), ]
 
+    tempdata_long <- tempdata_long[order(f.eid), ][!f.eid %in% wids, ]
+    fwrite(tempdata_long, out_file, sep = "\t", quote = FALSE)
+    return()
+}
+
+#' Print option list for the script
+#'
+#' @param option_list A list of options
+#' @return None
 print_option_list <- function(option_list) {
     cat("Option overview:\n\n")
     cat(sprintf("%-20s %-10s %s\n", "Name", "Type", "Default"))
@@ -51,16 +109,21 @@ print_option_list <- function(option_list) {
     }
 }
 
+#' Reformat UKB data
+#'
+#' @param fields A vector of field IDs to reformat
+#' @param data_coding Whether to enable data coding
+#' @param only_info Whether to display only info
+#' @param keep_instances Whether to keep instances in the output
+#' @param recode Whether to recode variables
+#' @return A list containing the reformatted data and field info
 reformat_ukb <- function(fields, data_coding = FALSE, only_info = FALSE, keep_instances = FALSE, recode = TRUE) {
-    # print info about fields
+    # Print info about fields
     field_baskets <- all_basket_fields[`Field ID` %in% fields & !is.na(basket), ]
     field_info <- unique(field_baskets[, .(`Field ID`, Description, Category, datatype, DataLocation, DataCoding = NA_character_)])
     fields <- field_info[, `Field ID`]
 
     if (data_coding) {
-        require("RCurl")
-        require("htmltidy")
-        require("XML")
         field_info$URL <- url <- paste0("https://biobank.ctsu.ox.ac.uk/crystal/field.cgi?id=", fields)
         data_codes <- NULL
         for (i in seq_len(nrow(field_info))) {
@@ -94,7 +157,7 @@ reformat_ukb <- function(fields, data_coding = FALSE, only_info = FALSE, keep_in
     for (j in seq_len(nrow(field_info))) {
         field_id <- field_info[j, `Field ID`]
         if (field_info[j, !grepl("merged", DataLocation)]) {
-            extractFieldData(
+            extract_field_data(
                 field_id = field_id,
                 basket = field_baskets[`Field ID` == field_id, basket],
                 file_basket = field_baskets[`Field ID` == field_id, basketfile],
@@ -104,7 +167,7 @@ reformat_ukb <- function(fields, data_coding = FALSE, only_info = FALSE, keep_in
                 overwrite = FALSE
             )
         }
-        fdata <- fread(field_info[j, DataLocation])
+        fdata <- fread(field_info[j, DataLocation], colClasses = "character")
         if (keep_instances) {
             setnames(fdata, "instance", paste0("i.", field_id))
             fdata[, c("f.eid", paste0(c("f.", "i."), field_id)), with = FALSE]
@@ -153,6 +216,7 @@ reformat_ukb <- function(fields, data_coding = FALSE, only_info = FALSE, keep_in
     return(list("data" = field_data, "info" = field_info))
 }
 
+# Define the option list for the script
 option_list <- list(
     make_option(c("--fields", "-f"),
         type = "character",
@@ -186,10 +250,12 @@ option_list <- list(
     )
 )
 
+# Parse the command line options
 parser <- OptionParser(option_list = option_list)
 options <- parse_args(parser)
 print_option_list(option_list)
 
+# Main script execution
 if (options$fields != "" || options$prefix != "") {
     options$fields <- strsplit(options$fields, ",")[[1]]
     results <- reformat_ukb(
@@ -209,3 +275,8 @@ if (options$fields != "" || options$prefix != "") {
     print("Not all parameters present")
     print("Use function as follows: `reformat_ukb(fields, data_coding = FALSE, only_info = FALSE, keep_instances = FALSE, recode = TRUE)`")
 }
+
+# Example usage of the reformat_ukb function
+# example_fields <- c("field1", "field2")
+# results <- reformat_ukb(fields = example_fields, data_coding = TRUE, only_info = FALSE, keep_instances = TRUE, recode = TRUE)
+# print(results)
